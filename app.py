@@ -1,32 +1,44 @@
 import os
-import sqlite3
+import psycopg2
+from urllib.parse import urlparse
 from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
-DATABASE = 'tasks.db'
-
 def get_db_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
+    result = urlparse(os.environ.get("DATABASE_URL"))
+    conn = psycopg2.connect(
+        dbname=result.path[1:],
+        user=result.username,
+        password=result.password,
+        host=result.hostname,
+        port=result.port
+    )
     return conn
 
+@app.route('/init-db')
 def init_db():
     conn = get_db_connection()
-    conn.execute('''
+    cur = conn.cursor()
+    cur.execute('''
         CREATE TABLE IF NOT EXISTS tasks (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            id SERIAL PRIMARY KEY,
             task TEXT NOT NULL,
-            completed INTEGER DEFAULT 0
+            completed BOOLEAN DEFAULT FALSE
         )
     ''')
     conn.commit()
+    cur.close()
     conn.close()
+    return "Database initialized!"
 
 @app.route('/')
 def index():
     conn = get_db_connection()
-    tasks = conn.execute('SELECT * FROM tasks').fetchall()
+    cur = conn.cursor()
+    cur.execute('SELECT * FROM tasks ORDER BY id')
+    tasks = cur.fetchall()
+    cur.close()
     conn.close()
     return render_template('index.html', tasks=tasks)
 
@@ -35,8 +47,10 @@ def add_task():
     new_task = request.form.get('newTask')
     if new_task:
         conn = get_db_connection()
-        conn.execute('INSERT INTO tasks (task) VALUES (?)', (new_task,))
+        cur = conn.cursor()
+        cur.execute('INSERT INTO tasks (task) VALUES (%s)', (new_task,))
         conn.commit()
+        cur.close()
         conn.close()
     return redirect(url_for('index'))
 
@@ -44,9 +58,11 @@ def add_task():
 def complete_tasks():
     completed_tasks = request.form.getlist('taskCheckbox')
     conn = get_db_connection()
+    cur = conn.cursor()
     for task_id in completed_tasks:
-        conn.execute('UPDATE tasks SET completed = 1 WHERE id = ?', (int(task_id),))
+        cur.execute('UPDATE tasks SET completed = TRUE WHERE id = %s', (int(task_id),))
     conn.commit()
+    cur.close()
     conn.close()
     return redirect(url_for('index'))
 
@@ -54,12 +70,13 @@ def complete_tasks():
 def delete_task():
     task_id = request.form.get('task_id')
     conn = get_db_connection()
-    conn.execute('DELETE FROM tasks WHERE id = ?', (task_id,))
+    cur = conn.cursor()
+    cur.execute('DELETE FROM tasks WHERE id = %s', (task_id,))
     conn.commit()
+    cur.close()
     conn.close()
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    init_db()
     port = int(os.environ.get('PORT', 10000))
     app.run(host='0.0.0.0', port=port)
