@@ -13,25 +13,20 @@
     <form method="POST" action="{{ url_for('complete_tasks') }}">
         <ul>
             {% for task in tasks %}
-                <li>
-                    <input type="checkbox" id="taskCheckbox-{{ loop.index }}" name="taskCheckbox" value="{{ loop.index }}">
-                    <label for="taskCheckbox-{{ loop.index }}">{{ task }}</label>
-                    
-                    {% if 'Completed' in task %}
-                        <!-- Delete button appears only for completed tasks -->
-                        <button type="button" onclick="deleteTask({{ loop.index }})">Delete</button>
-                    {% endif %}
-                </li>
+            <li>
+                <input type="checkbox" name="taskCheckbox" value="{{ task['id'] }}" {% if task['completed'] %}checked disabled{% endif %}>
+                <span style="{% if task['completed'] %}text-decoration: line-through;{% endif %}">{{ task['task'] }}</span>
+            </li>
             {% endfor %}
         </ul>
-        <button type="submit">Mark as Completed</button>
+        <button type="submit">Mark Completed</button>
     </form>
 
     <!-- 🔧 Form to add new task -->
     <form method="POST" action="{{ url_for('add_task') }}">
         <label for="newTask">Add Task:</label>
-        <input type="text" id="newTask" name="newTask" required>
-        <button type="submit">Add</button>
+        <input type="text" name="newTask" placeholder="New task" required>
+        <button type="submit">Add Task</button>
     </form>
 
     <!-- ✅ JavaScript for delete button -->
@@ -44,7 +39,7 @@
 
                 const input = document.createElement('input');
                 input.type = 'hidden';
-                input.name = 'task_index';
+                input.name = 'task_id';
                 input.value = index;
 
                 form.appendChild(input);
