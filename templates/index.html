@@ -14,8 +14,9 @@
         <ul>
             {% for task in tasks %}
             <li>
-                <input type="checkbox" name="taskCheckbox" value="{{ task['id'] }}" {% if task['completed'] %}checked disabled{% endif %}>
-                <span style="{% if task['completed'] %}text-decoration: line-through;{% endif %}">{{ task['task'] }}</span>
+                <input type="checkbox" name="taskCheckbox" value="{{ task[0] }}" {% if task[2] %}checked disabled{% endif %}>
+                <span style="{% if task[2] %}text-decoration: line-through;{% endif %}">{{ task[1] }}</span>
+                <button type="button" onclick="deleteTask({{ task[0] }})">❌</button>
             </li>
             {% endfor %}
         </ul>
