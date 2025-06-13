@@ -18,21 +18,17 @@ const submit = document.getElementById('submit');
 submit.addEventListener("click", function(event){
   event.preventDefault(); // to prevent page from refreshing
 
-const email = document.getElementById('email').value;
-const password = document.getElementById('password').value;
+  const email = document.getElementById('email').value;
+  const password = document.getElementById('password').value;
 
-createUserWithEmailAndPassword(auth, email, password)
-  .then((userCredential) => {
-    // Signed up 
-    const user = userCredential.user;
-    alert("Creating Account...")
-    window.location.href = "templates\login.html";
-    // ...
-  })
-  .catch((error) => {
-    const errorCode = error.code;
-    const errorMessage = error.message;
-    alert(errorMessage)
-    // ..
-  });
+  createUserWithEmailAndPassword(auth, email, password)
+    .then((userCredential) => {
+      const user = userCredential.user;
+      alert("Account created!");
+      // Redirect to your Flask app with UID param
+      window.location.href = `/?uid=${user.uid}`;
+    })
+    .catch((error) => {
+      alert(error.message);
+    });
 });

@@ -37,7 +37,8 @@ def init_db():
 def index():
     uid = request.args.get('uid', '')
     if not uid:
-        return redirect('/login.html')
+        # Redirect to login page if no uid provided
+        return redirect(url_for('login'))  # Create a login route to serve login.html
 
     conn = get_db_connection()
     cur = conn.cursor()
@@ -45,7 +46,7 @@ def index():
     tasks = cur.fetchall()
     cur.close()
     conn.close()
-    return render_template('index.html', tasks=tasks)
+    return render_template('index.html', tasks=tasks, uid=uid)
 
 @app.route('/add', methods=['POST'])
 def add_task():
@@ -86,6 +87,14 @@ def delete_task():
         cur.close()
         conn.close()
     return redirect(url_for('index', uid=uid))
+
+@app.route('/signup')
+def signup():
+    return render_template('signup.html')
+
+@app.route('/login')
+def login():
+    return render_template('login.html')
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 10000))
