@@ -30,6 +30,7 @@ async function addTask() {
         const newTask = await response.json();
         addTaskToDOM(newTask.id, newTask.task, false);
         inputBox.value = "";
+        updateCounters();
     }
     else {
         alert("Failed to save task!");
