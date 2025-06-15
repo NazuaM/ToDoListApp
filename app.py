@@ -12,7 +12,7 @@ def get_db_connection():
         user=result.username,
         password=result.password,
         host=result.hostname,
-        port=result.port
+        port=result.port,
         sslmode='require'
     )
     return conn
