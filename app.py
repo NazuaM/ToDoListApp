@@ -1,7 +1,7 @@
 import os
 import psycopg2
 from urllib.parse import urlparse
-from flask import Flask, render_template, request, redirect, url_for
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
 
@@ -13,6 +13,7 @@ def get_db_connection():
         password=result.password,
         host=result.hostname,
         port=result.port
+        sslmode='require'
     )
     return conn
 
@@ -37,46 +38,69 @@ def init_db():
 def index():
     uid = request.args.get('uid', '')
     if not uid:
-        # Redirect to login page if no uid provided
-        return redirect(url_for('login'))  # Create a login route to serve login.html
-
-    conn = get_db_connection()
-    cur = conn.cursor()
-    cur.execute('SELECT * FROM tasks WHERE user_id = %s ORDER BY id', (uid,))
-    tasks = cur.fetchall()
-    cur.close()
-    conn.close()
-    return render_template('index.html', tasks=tasks, uid=uid)
+        return redirect(url_for('login'))
+    return render_template('index.html', uid=uid)
 
 @app.route('/add', methods=['POST'])
 def add_task():
-    new_task = request.form.get('newTask')
+    new_task = request.form.get('task')  # Changed from 'newTask' to match JS
     uid = request.form.get('uid')
     if new_task and uid:
         conn = get_db_connection()
         cur = conn.cursor()
-        cur.execute('INSERT INTO tasks (user_id, task) VALUES (%s, %s)', (uid, new_task))
+        cur.execute('INSERT INTO tasks (user_id, task) VALUES (%s, %s) RETURNING id', (uid, new_task))
+        task_id = cur.fetchone()[0]
         conn.commit()
         cur.close()
         conn.close()
-    return redirect(url_for('index', uid=uid))
+        return jsonify({'id': task_id, 'task': new_task})
+    return 'Missing data', 400
 
-@app.route('/complete', methods=['POST'])
-def complete_tasks():
-    completed_tasks = request.form.getlist('taskCheckbox')
+@app.route('/get-tasks')
+def get_tasks():
+    uid = request.args.get('uid')
+    if not uid:
+        return jsonify([])
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute('SELECT id, task, completed FROM tasks WHERE user_id = %s ORDER BY id', (uid,))
+    tasks = [{'id': row[0], 'task': row[1], 'completed': row[2]} for row in cur.fetchall()]
+    cur.close()
+    conn.close()
+    return jsonify(tasks)
+
+@app.route('/update-task', methods=['POST'])
+def update_task():
+    task_id = request.form.get('task_id')
+    completed = request.form.get('completed') == 'true'
     uid = request.form.get('uid')
-    if uid:
+    if task_id and uid:
         conn = get_db_connection()
         cur = conn.cursor()
-        for task_id in completed_tasks:
-            cur.execute('UPDATE tasks SET completed = TRUE WHERE id = %s AND user_id = %s', (int(task_id), uid))
+        cur.execute('UPDATE tasks SET completed = %s WHERE id = %s AND user_id = %s', (completed, task_id, uid))
         conn.commit()
         cur.close()
         conn.close()
-    return redirect(url_for('index', uid=uid))
+        return '', 204
+    return 'Missing data', 400
 
-@app.route('/delete', methods=['POST'])
-def delete_task():
+@app.route('/update-task-text', methods=['POST'])
+def update_task_text():
+    task_id = request.form.get('task_id')
+    new_text = request.form.get('new_text')
+    uid = request.form.get('uid')
+    if task_id and new_text and uid:
+        conn = get_db_connection()
+        cur = conn.cursor()
+        cur.execute('UPDATE tasks SET task = %s WHERE id = %s AND user_id = %s', (new_text, task_id, uid))
+        conn.commit()
+        cur.close()
+        conn.close()
+        return '', 204
+    return 'Missing data', 400
+
+@app.route('/delete-task', methods=['POST'])
+def delete_task_js():
     task_id = request.form.get('task_id')
     uid = request.form.get('uid')
     if task_id and uid:
@@ -86,7 +110,8 @@ def delete_task():
         conn.commit()
         cur.close()
         conn.close()
-    return redirect(url_for('index', uid=uid))
+        return '', 204
+    return 'Missing data', 400
 
 @app.route('/signup')
 def signup():
